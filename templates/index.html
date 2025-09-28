@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ shop_name }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #87CEEB; /* Sky Blue */
+            margin: 0;
+            overflow-x: hidden; /* Prevent horizontal scroll due to animations */
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        /* Animations */
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .animated-header, .animated-section, .animated-form, .animated-sidebar, .animated-services {
+            opacity: 0;
+            animation-fill-mode: forwards;
+        }
+
+        .animated-header {
+            animation: fadeInScale 0.8s ease-out 0.2s forwards;
+        }
+        .animated-section {
+            animation: slideInUp 0.8s ease-out 0.4s forwards;
+        }
+        /* Adjusted timing for new sections */
+        .animated-services {
+            animation: slideInUp 0.8s ease-out 0.6s forwards; 
+        }
+        .animated-form {
+            animation: slideInUp 0.8s ease-out 0.8s forwards; 
+        }
+        .animated-sidebar {
+            animation: slideInUp 0.8s ease-out 1.0s forwards;
+        }
+
+        /* Specific styles for card backgrounds and shadows */
+        .card-bg {
+            background: rgba(255, 255, 255, 0.95); /* Slightly transparent white */
+            backdrop-filter: blur(5px); /* Frosted glass effect */
+        }
+
+        /* Removed custom .grid-5-items CSS and will use Tailwind's responsive grid classes directly in HTML. */
+    </style>
+</head>
+<body class="min-h-screen text-gray-800">
+
+    <div id="booking-success-modal" class="modal-overlay">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full text-center transform transition-transform duration-300 scale-95 md:scale-100">
+            <svg class="mx-auto h-24 w-24 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h2 class="text-3xl font-bold mt-4 text-gray-900">Booking Confirmed!</h2>
+            <p class="mt-2 text-lg text-gray-600">Thank you for your appointment with {{ healer_name }}. We look forward to seeing you!</p>
+            <div class="mt-6 flex justify-center gap-4">
+                <button id="modal-exit-button" class="px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 transition-colors duration-300">
+                    Exit
+                </button>
+                <button id="modal-close-button" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300">
+                    Go Back
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-4 md:p-8">
+
+        <header class="text-center mb-8 animated-header">
+            <img src="{{ url_for('static', filename='images/header.jpg') }}" alt="Header for Natural Healing Center" class="w-full h-auto rounded-xl shadow-lg">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-blue-800 tracking-tight mt-4">{{ shop_name }}</h1>
+            <p class="mt-2 text-xl text-gray-600">{{ healer_name }} | {{ shop_city }}</p>
+        </header>
+
+        <div class="mt-8 card-bg p-6 md:p-8 rounded-2xl shadow-lg animated-section">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4 text-center">About {{ healer_name }}</h2>
+            <div class="flex flex-col items-center mb-6">
+                <div class="w-48 h-48 mb-4 rounded-full overflow-hidden bg-blue-100 p-2 shadow-lg flex items-center justify-center">
+                    <img src="{{ url_for('static', filename='images/profile.jpg') }}" alt="Profile picture of {{ healer_name }}" class="w-full h-full object-cover rounded-full">
+                </div>
+                <p class="text-lg text-gray-700 text-center max-w-2xl">
+                    {{ healer_name }} is a dedicated and experienced practitioner of natural healing, committed to helping clients achieve physical and emotional well-being.
+                    With a holistic approach, {{ healer_name }} guides individuals on their journey to inner peace and optimal health, combining ancient wisdom with modern techniques.
+                </p>
+            </div>
+
+            <h3 class="text-xl font-bold text-gray-900 mt-8 mb-4 text-center">Our Services and Certifications</h3>
+
+            <div class="flex flex-col items-center gap-6">
+                
+                <div class="w-full max-w-xs mb-4">
+                    <img src="{{ url_for('static', filename='images/Screenshot 2025-08-21 185644.jpg') }}" 
+                         alt="Basava ACU Academy Logo" 
+                         class="w-full h-auto rounded-lg shadow-lg mx-auto hover:scale-105 transition-transform duration-300">
+                </div>
+                
+                <div class="flex flex-col md:flex-row justify-center items-center md:items-start gap-6 w-full">
+                    <div class="w-full md:w-1/3 max-w-xs">
+                        <img src="{{ url_for('static', filename='images/cert1.jpeg') }}" alt="Color Therapy Certificate" class="w-full h-auto rounded-lg shadow-md hover:scale-105 transition-transform duration-300">
+                    </div>
+                    <div class="w-full md:w-1/3 max-w-xs">
+                        <img src="{{ url_for('static', filename='images/cert2.jpg') }}" alt="Traditional Energy Medicine Diploma" class="w-full h-auto rounded-lg shadow-md hover:scale-105 transition-transform duration-300">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-8 card-bg p-6 md:p-8 rounded-2xl shadow-lg animated-services">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4 text-center">Treatments Provided</h2>
+            <div class="flex flex-col md:flex-row items-center gap-6">
+                <div class="flex-grow">
+                    <ul class="list-disc list-inside text-gray-700 text-left pl-5 text-lg space-y-2">
+                        {% for t in treatments_Provided %}
+                        <li>{{ t }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="w-full md:w-1/3 max-w-xs flex-shrink-0">
+                    <img src="{{ url_for('static', filename='images/session.jpg') }}" alt="Healer Session" class="w-full h-auto rounded-lg shadow-md hover:scale-105 transition-transform duration-300">
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 card-bg p-6 md:p-8 rounded-2xl shadow-lg animated-services">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4 text-center">Services Offered</h2>
+            
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                
+                <img src="{{ url_for('static', filename='images/color_therapy_types.jpg') }}" 
+                     alt="Color Therapy Types Chart" 
+                     class="w-full h-auto rounded-lg shadow-md hover:scale-105 transition-transform duration-300">
+                
+                <img src="{{ url_for('static', filename='images/ear_points_chart_detailed.jpg') }}" 
+                     alt="Color Therapy Brain/Mind" 
+                     class="w-full h-auto rounded-lg shadow-md hover:scale-105 transition-transform duration-300">
+                
+                <img src="{{ url_for('static', filename='images/auriculotherapy_benefits.jpg') }}" 
+                     alt="Color Therapy Logo" 
+                     class="w-full h-auto rounded-lg shadow-md hover:scale-105 transition-transform duration-300">
+                
+                <img src="{{ url_for('static', filename='images/color_therapy_logo.jpg') }}" 
+                     alt="Auriculotherapy and Ear Seeds" 
+                     class="w-full h-auto rounded-lg shadow-md hover:scale-105 transition-transform duration-300">
+                
+                <img src="{{ url_for('static', filename='images/ear_therapy.jpg') }}" 
+                     alt="Musculoskeletal Ear Points Chart" 
+                     class="w-full h-auto rounded-lg shadow-md hover:scale-105 transition-transform duration-300">
+                
+                <img src="{{ url_for('static', filename='images/color_therapy_brain.jpg') }}" 
+                     alt="Color Exploration" 
+                     class="w-full h-auto rounded-lg shadow-md hover:scale-105 transition-transform duration-300">
+
+                 
+            </div>
+        </div>
+
+        <div class="flex flex-col lg:flex-row gap-8 items-start mt-8">
+            
+            <div class="card-bg p-6 md:p-8 rounded-2xl shadow-lg w-full lg:w-2/3 animated-form">
+                <h2 class="text-2xl font-bold text-gray-900 mb-6">Book an Appointment</h2>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <div class="mb-4">
+                    {% for category, message in messages %}
+                    <div class="rounded-lg p-3 text-sm {% if category == 'success' %}bg-green-100 text-green-700{% elif category == 'danger' %}bg-red-100 text-red-700{% endif %}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
+
+                <form id="booking-form" method="POST" action="/book">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-4 col-span-1 md:col-span-2"> 
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="name" class="block text-sm font-bold text-gray-700 mb-1">Name</label>
+                                    <input type="text" id="name" name="name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ registered_name }}">
+                                </div>
+                                <div>
+                                    <label for="phone" class="block text-sm font-bold text-gray-700 mb-1">Phone</label>
+                                    <input type="tel" id="phone" name="phone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ registered_phone }}">
+                                </div>
+                            </div>
+                            <div>
+                                <label for="email" class="block text-sm font-bold text-gray-700 mb-1">Email (Mandatory)</label>
+                                <input type="email" id="email" name="email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="age" class="block text-sm font-bold text-gray-700 mb-1">Age</label>
+                                    <input type="number" id="age" name="age" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label for="location" class="block text-sm font-bold text-gray-700 mb-1">Location</label>
+                                    <input type="text" id="location" name="location" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="date" class="block text-sm font-bold text-gray-700 mb-1">Date</label>
+                                    <input type="date" id="date" name="date" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" min="{{ today }}">
+                                </div>
+                                <div>
+                                    <label for="slot" class="block text-sm font-bold text-gray-700 mb-1">Time Slot</label>
+                                    <select id="slot" name="slot" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="" disabled selected>Select a slot</option>
+                                        {% for s in slots %}
+                                        <option value="{{ s }}">{{ s }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full mt-6 px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors duration-300">
+                        Book Appointment
+                    </button>
+                </form>
+            </div>
+            
+            <div class="card-bg p-6 md:p-8 rounded-2xl shadow-lg w-full lg:w-1/3 text-center lg:sticky lg:top-8 animated-sidebar">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">{{ shop_name }}</h2>
+                <div class="w-48 h-48 mx-auto mb-4 border-2 border-gray-200 rounded-lg overflow-hidden">
+                    <img src="{{ url_for('static', filename='images/address_qr.png') }}" 
+                         alt="Shop QR Code" 
+                         class="w-48 h-48 mx-auto object-contain">
+                </div>
+                <p class="text-sm text-gray-600">Scan this code to get our location on Google Maps.</p>
+                
+                <div class="mt-6 text-left">
+                    <p class="font-bold text-gray-900">Contact Details:</p>
+                    <p class="text-sm text-gray-700">{{ shop_address }}</p>
+                    <p class="text-sm text-gray-700">Phone: {{ owner_phone }}</p>
+                    <p class="text-sm text-gray-700">Email: 
+                        <a href="mailto:{{ owner_email }}" class="text-blue-600 hover:underline">{{ owner_email }}</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            async function handleFormSubmit(event) {
+                event.preventDefault();
+                const form = event.target;
+                const formData = new FormData(form);
+                const submitButton = form.querySelector('button[type="submit"]');
+
+                submitButton.disabled = true;
+                submitButton.textContent = "Booking...";
+
+                try {
+                    const response = await fetch(form.action, { method: 'POST', body: formData });
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        document.getElementById('booking-success-modal').style.display = 'flex';
+                        form.reset();
+                        document.getElementById('name').value = "{{ registered_name | default('') }}";
+                        document.getElementById('phone').value = "{{ registered_phone | default('') }}";
+                    } else {
+                        alert(result.message);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert("An error occurred. Please try again later.");
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.textContent = "Book Appointment";
+                }
+            }
+
+            const bookingForm = document.getElementById('booking-form');
+            if (bookingForm) {
+                bookingForm.addEventListener('submit', handleFormSubmit);
+            }
+
+            const modalCloseButton = document.getElementById('modal-close-button');
+            const modalExitButton = document.getElementById('modal-exit-button');
+            const modalOverlay = document.getElementById('booking-success-modal');
+            
+            if (modalCloseButton && modalOverlay) {
+                modalCloseButton.addEventListener('click', function() {
+                    modalOverlay.style.display = 'none';
+                });
+            }
+
+            if (modalExitButton && modalOverlay) {
+                modalExitButton.addEventListener('click', function() {
+                    modalOverlay.style.display = 'none';
+                    window.location.href = "{{ url_for('register_page') }}";
+                });
+            }
+        });
+    </script>
+</body>
+</html>

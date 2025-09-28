@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f4f6f9; color: #333; }
+    h1 { text-align: center; color: #007BFF; margin-bottom: 25px; }
+    h2 { text-align: center; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-top: 40px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); background: white; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+    th { background: #007BFF; color: white; font-weight: bold; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    tr:hover { background-color: #f0f0f0; }
+    .logout-btn {
+      display: block; 
+      width: 120px;
+      margin: 20px auto 0 auto;
+      padding: 10px;
+      background: #dc3545;
+      color: white;
+      text-align: center;
+      border-radius: 6px;
+      text-decoration: none;
+    }
+    .logout-btn:hover { background: #c82333; }
+    .no-records { text-align: center; color: #777; padding: 50px; }
+  </style>
+</head>
+<body>
+
+  <h1>Admin Dashboard</h1>
+  <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+  
+  <h2 style="margin-top: 20px;">All Appointments (Newest First)</h2>
+
+  {% if records %}
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>Email</th>
+          <th>Age</th>
+          <th>Location</th>
+          <th>Date</th>
+          <th>Slot</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for record in records | reverse %}
+        <tr>
+          <td>{{ record.Name }}</td>
+          <td>{{ record.Phone }}</td>
+          <td>{{ record.Email }}</td>
+          <td>{{ record.Age }}</td>
+          <td>{{ record.Location }}</td>
+          <td>{{ record.Date }}</td>
+          <td>{{ record.Slot }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="no-records">No appointment records found or an error occurred retrieving the Google Sheet data.</p>
+  {% endif %}
+
+</body>
+</html>
