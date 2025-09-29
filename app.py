@@ -7,7 +7,9 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
 import json
-import ssl # NEW: Import ssl for SMTP_SSL context
+import ssl
+from gspread.exceptions import APIError # NEW IMPORT
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type # NEW IMPORTS for retry
 
 app = Flask(__name__)
 
@@ -64,6 +66,19 @@ else:
     client_gs = None # Set to None to prevent errors in routes
     
 
+# ---------------- GSPREAD RETRY HELPER ----------------
+# NEW HELPER FUNCTION TO HANDLE TEMPORARY API ERRORS (LIKE 502)
+@retry(
+    stop=stop_after_attempt(5), 
+    wait=wait_exponential(multiplier=1, min=2, max=10), 
+    retry=retry_if_exception_type(APIError)
+)
+def append_row_with_retry(data_row):
+    """Retries the GSheets append operation if a transient APIError occurs."""
+    sheet.append_row(data_row)
+# --------------------------------------------------------
+
+
 # ---------------- EMAIL HELPER FUNCTIONS ----------------
 def send_email(to_email, subject, body, is_html=False):
     """Helper function to send email."""
@@ -83,9 +98,8 @@ def send_email(to_email, subject, body, is_html=False):
         else:
             msg.attach(MIMEText(body, "plain"))
 
-        # FIX: SWITCHED TO SMTP_SSL AND PORT 465 TO RESOLVE CONNECTION TIMEOUT
+        # Using SMTP_SSL and explicit timeout=60 (your previous fix)
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=60, context=ssl.create_default_context()) as server:
-            # server.starttls() is NOT needed for SMTP_SSL
             server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
             server.sendmail(app.config['MAIL_USERNAME'], [to_email, app.config['MAIL_USERNAME']], msg.as_string())
         print(f"✅ Email sent to {to_email}")
@@ -254,8 +268,10 @@ def book():
         booking_date = request.form.get("date")
         slot = request.form.get("slot")
 
-        # This operation must succeed before email is sent
-        sheet.append_row([name, phone, email, age, location, booking_date, slot])
+        data_row = [name, phone, email, age, location, booking_date, slot]
+
+        # USE RETRY HELPER HERE
+        append_row_with_retry(data_row)
 
         # Customer Email
         subject = "Your Appointment is Confirmed!"
@@ -270,7 +286,6 @@ def book():
         return jsonify({"success": True, "message": "Booking confirmed!"}), 200
 
     except Exception as e:
-        # Added str(e) to the error message for better logging if the error is GSheets or general exception
         print(f"❌ Error in booking: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
