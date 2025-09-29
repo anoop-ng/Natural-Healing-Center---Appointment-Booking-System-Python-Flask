@@ -5,12 +5,28 @@ from datetime import date
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import os # NEW: Import os for environment variables
+import json # NEW: Import json for parsing credentials
 
 app = Flask(__name__)
-# ⚠️ CRITICAL: REPLACE THIS WITH A LONG, RANDOM, SECURE KEY FOR PRODUCTION
-app.secret_key =  '662ace46ee00ef6e1fc014491f06f3dc157cf0590ea3a49a'
 
 # ---------------- APPLICATION & EMAIL CONFIGURATION ----------------
+
+# 1. READ SECRETS FROM ENVIRONMENT VARIABLES (Render Dashboard)
+app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_for_testing')
+
+# Email setup for sending mails
+app.config['MAIL_USERNAME'] = "tarunun11@gmail.com" # NOTE: This is generally safe to hardcode if it's the sender
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD') # SECURE: Reads 16-character App Password
+
+# ---------------- ADMIN LOGIN CREDENTIALS ----------------
+# SECURE: Reads Admin Credentials from Environment Variables
+ADMIN_USERNAME = os.environ.get("ADMIN_USER") 
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASS") 
+# -----------------------------------------------------------------
+
+
+# STATIC CONFIG (These are safe to hardcode)
 app.config['SHOP_NAME'] = "Natural Healing Center"
 app.config['HEALER_NAME'] = "Healer TarunKumar UN"
 app.config['SHOP_CITY'] = "Davangere"
@@ -18,32 +34,44 @@ app.config['SHOP_ADDRESS'] = "Kirwadi Layout,1st Main,1st Cross,Lenin Nagara,Nit
 app.config['OWNER_PHONE'] = "+919741367959"
 app.config['OWNER_EMAIL'] = "tarunun11@gmail.com"
 
-# Email setup for sending mails
-app.config['MAIL_USERNAME'] = "tarunun11@gmail.com"
-app.config['MAIL_PASSWORD'] = "dbqwdfuzavtmjzrq" # Your 16-character App Password
 
-# ---------------- ADMIN LOGIN CREDENTIALS ----------------
-# NOTE: CHANGE THESE TO YOUR SECURE LOGIN CREDENTIALS
-ADMIN_USERNAME = "NHC_TarunBoss2025" 
-ADMIN_PASSWORD = "T@runHeals#051!Dbgn" 
-# -----------------------------------------------------------------
+# ---------------- GOOGLE SHEETS SETUP (SECURE FOR RENDER) ----------------
+# FIX: Reads credentials from the GSPREAD_CREDENTIALS environment variable
+GSPREAD_CREDENTIALS_JSON = os.environ.get('GSPREAD_CREDENTIALS')
 
-# ---------------- GOOGLE SHEETS SETUP ----------------
-scope = ["https://www.googleapis.com/auth/spreadsheets",
-         "https://www.googleapis.com/auth/drive"]
-
-# IMPORTANT: Ensure this path is correct on your production server
-creds = Credentials.from_service_account_file(r"E:\tarunproject\credentials.json", scopes=scope)
-client_gs = gspread.authorize(creds)
-
-sheet = client_gs.open_by_url(
-    "https://docs.google.com/spreadsheets/d/15Y0AVv682PQr9DoNk2PLCzE2VEw7eFdfFwjhKYGzk6I/edit?usp=sharing"
-).sheet1
-
+if GSPREAD_CREDENTIALS_JSON:
+    try:
+        # 1. Parse the JSON string into a Python dictionary
+        creds_info = json.loads(GSPREAD_CREDENTIALS_JSON)
+        
+        # 2. Authorize using the dictionary content
+        scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(creds_info, scopes=scope)
+        client_gs = gspread.authorize(creds)
+        
+        # Open your sheet using the correct URL
+        sheet = client_gs.open_by_url(
+            "https://docs.google.com/spreadsheets/d/15Y0AVv682PQr9DoNk2PLCzE2VEw7eFdfFwjhKYGzk6I/edit?usp=sharing"
+        ).sheet1
+        print("✅ Google Sheets connection successful via Environment Variable.")
+        
+    except Exception as e:
+        print(f"❌ ERROR: Failed to connect to Google Sheets: {e}")
+        # In a deployment environment, if this fails, the app should probably not run
+        client_gs = None # Set to None to prevent errors in routes
+else:
+    print("❌ ERROR: GSPREAD_CREDENTIALS environment variable is missing.")
+    client_gs = None # Set to None to prevent errors in routes
+    
 
 # ---------------- EMAIL HELPER FUNCTIONS ----------------
 def send_email(to_email, subject, body, is_html=False):
     """Helper function to send email."""
+    # Check if MAIL_PASSWORD is set (it comes from the ENV variable)
+    if not app.config['MAIL_PASSWORD']:
+        print("❌ Email failed: MAIL_PASSWORD environment variable is missing.")
+        return
+    
     try:
         msg = MIMEMultipart()
         msg["From"] = app.config['MAIL_USERNAME']
@@ -55,6 +83,7 @@ def send_email(to_email, subject, body, is_html=False):
         else:
             msg.attach(MIMEText(body, "plain"))
 
+        # NOTE: Using app.config['MAIL_PASSWORD'] which is now read from ENV
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
             server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
@@ -70,9 +99,6 @@ def create_customer_email_body_html(name, booking_date, slot):
     google_maps_url = f"https://www.google.com/maps/search/?api=1&query={google_maps_query}"
     call_link = f"tel:{app.config['OWNER_PHONE']}"
 
-    # NOTE: The email HTML body (omitted here for brevity, but retained from your previous code)
-    # is assumed to be correct and unchanged for the public facing email.
-    
     html_content = f"""
     <html>
     <head>
@@ -129,29 +155,26 @@ def login():
 
     if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
         session['logged_in'] = True
-        # NOTE: Using the provided admin_dashboard.html, assuming it renders the sheet data
         return redirect(url_for('admin_dashboard')) 
     else:
-        # Re-render the login page with an error. 
-        # (This is a simplified approach, using flash messages is better for production)
         return render_template("admin_login.html", error="Invalid credentials")
 
 @app.route("/dashboard")
 def admin_dashboard():
     """Renders the secure admin dashboard (admin_dashboard.html)."""
-    # SECURITY CHECK: If user is not logged in, redirect to login page
     if 'logged_in' not in session or not session['logged_in']:
         return redirect(url_for('admin_login_page'))
     
-    # Get all booking records for display
+    # Check if Google Sheets client is available before querying
+    if client_gs is None:
+        return render_template("admin_dashboard.html", records=[], error="Database connection failed. Check logs.", app_config=app.config)
+
     try:
-        # Note: This assumes your Google Sheet columns match the keys expected in admin_dashboard.html
         all_records = sheet.get_all_records()
     except Exception as e:
         all_records = []
         print(f"Error retrieving sheet records: {e}")
     
-    # The 'records' variable will be used by admin_dashboard.html
     return render_template("admin_dashboard.html", records=all_records, app_config=app.config)
 
 @app.route("/logout")
@@ -210,6 +233,10 @@ def booking_page():
 @app.route("/book", methods=["POST"])
 def book():
     """Handles the appointment booking form submission."""
+    # Check for Google Sheets connection first
+    if client_gs is None:
+        return jsonify({"success": False, "message": "Server error: Database is not connected."}), 500
+
     try:
         name = request.form.get("name")
         phone = request.form.get("phone")
@@ -220,7 +247,7 @@ def book():
         email = request.form.get("email")
         
         if not email:
-             return jsonify({"success": False, "message": "Email is required."}), 400
+              return jsonify({"success": False, "message": "Email is required."}), 400
 
         age = request.form.get("age")
         location = request.form.get("location")
@@ -247,5 +274,4 @@ def book():
 
 
 if __name__ == "__main__":
-    # ⚠️ REMEMBER: USE A PRODUCTION WSGI SERVER (LIKE GUNICORN) AND debug=False FOR LAUNCH
     app.run(debug=False)
