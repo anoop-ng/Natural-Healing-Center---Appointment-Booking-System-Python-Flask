@@ -8,8 +8,8 @@ from email.mime.multipart import MIMEMultipart
 import os
 import json
 import ssl
-from gspread.exceptions import APIError # NEW IMPORT
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type # NEW IMPORTS for retry
+from gspread.exceptions import APIError 
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type 
 
 app = Flask(__name__)
 
@@ -19,7 +19,10 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_for_testing')
 
 # Email setup for sending mails
-app.config['MAIL_USERNAME'] = "tarunun11@gmail.com"
+# FIX: MAIL_USERNAME is now set to 'apikey' on Render, but we keep the owner email here 
+# if the environment variable is not set. We will use the ENV variable on Render.
+# Note: On Render, the MAIL_USERNAME from the ENV will override the hardcoded value below.
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', "tarunun11@gmail.com") 
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
 # ---------------- ADMIN LOGIN CREDENTIALS ----------------
@@ -89,7 +92,8 @@ def send_email(to_email, subject, body, is_html=False):
     
     try:
         msg = MIMEMultipart()
-        msg["From"] = app.config['MAIL_USERNAME']
+        # Use MAIL_USERNAME from config (which gets overwritten by 'apikey' on Render)
+        msg["From"] = app.config['MAIL_USERNAME'] 
         msg["To"] = to_email
         msg["Subject"] = subject
         
@@ -98,11 +102,13 @@ def send_email(to_email, subject, body, is_html=False):
         else:
             msg.attach(MIMEText(body, "plain"))
 
-        # Using SMTP_SSL and explicit timeout=60 (your previous fix)
+        # FIX: Using SendGrid's standard SMTP host and STARTTLS on port 587
         with smtplib.SMTP("smtp.sendgrid.net", 587, timeout=60) as server:
             server.starttls(context=ssl.create_default_context())
-              server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+            # FIX: ENSURE CORRECT INDENTATION FOR LOGIN AND SENDMAIL
+            server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
             server.sendmail(app.config['MAIL_USERNAME'], [to_email, app.config['MAIL_USERNAME']], msg.as_string())
+            
         print(f"✅ Email sent to {to_email}")
     except Exception as e:
         print(f"❌ Email failed to {to_email}: {e}")
@@ -262,7 +268,7 @@ def book():
         email = request.form.get("email")
         
         if not email:
-              return jsonify({"success": False, "message": "Email is required."}), 400
+             return jsonify({"success": False, "message": "Email is required."}), 400
 
         age = request.form.get("age")
         location = request.form.get("location")
