@@ -99,8 +99,9 @@ def send_email(to_email, subject, body, is_html=False):
             msg.attach(MIMEText(body, "plain"))
 
         # Using SMTP_SSL and explicit timeout=60 (your previous fix)
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=60, context=ssl.create_default_context()) as server:
-            server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+        with smtplib.SMTP("smtp.sendgrid.net", 587, timeout=60) as server:
+            server.starttls(context=ssl.create_default_context())
+              server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
             server.sendmail(app.config['MAIL_USERNAME'], [to_email, app.config['MAIL_USERNAME']], msg.as_string())
         print(f"✅ Email sent to {to_email}")
     except Exception as e:
