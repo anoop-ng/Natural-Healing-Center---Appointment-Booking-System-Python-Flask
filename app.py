@@ -84,7 +84,7 @@ def send_email(to_email, subject, body, is_html=False):
             msg.attach(MIMEText(body, "plain"))
 
         # FIX: SWITCHED TO SMTP_SSL AND PORT 465 TO RESOLVE CONNECTION TIMEOUT
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context()) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=60, context=ssl.create_default_context()) as server:
             # server.starttls() is NOT needed for SMTP_SSL
             server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
             server.sendmail(app.config['MAIL_USERNAME'], [to_email, app.config['MAIL_USERNAME']], msg.as_string())
