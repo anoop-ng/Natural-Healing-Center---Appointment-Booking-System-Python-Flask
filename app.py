@@ -5,8 +5,9 @@ from datetime import date
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import os # NEW: Import os for environment variables
-import json # NEW: Import json for parsing credentials
+import os
+import json
+import ssl # NEW: Import ssl for SMTP_SSL context
 
 app = Flask(__name__)
 
@@ -16,8 +17,8 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_for_testing')
 
 # Email setup for sending mails
-app.config['MAIL_USERNAME'] = "tarunun11@gmail.com" # NOTE: This is generally safe to hardcode if it's the sender
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD') # SECURE: Reads 16-character App Password
+app.config['MAIL_USERNAME'] = "tarunun11@gmail.com"
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
 # ---------------- ADMIN LOGIN CREDENTIALS ----------------
 # SECURE: Reads Admin Credentials from Environment Variables
@@ -57,7 +58,6 @@ if GSPREAD_CREDENTIALS_JSON:
         
     except Exception as e:
         print(f"❌ ERROR: Failed to connect to Google Sheets: {e}")
-        # In a deployment environment, if this fails, the app should probably not run
         client_gs = None # Set to None to prevent errors in routes
 else:
     print("❌ ERROR: GSPREAD_CREDENTIALS environment variable is missing.")
@@ -83,11 +83,11 @@ def send_email(to_email, subject, body, is_html=False):
         else:
             msg.attach(MIMEText(body, "plain"))
 
-        # NOTE: Using app.config['MAIL_PASSWORD'] which is now read from ENV
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.starttls()
+        # FIX: SWITCHED TO SMTP_SSL AND PORT 465 TO RESOLVE CONNECTION TIMEOUT
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context()) as server:
+            # server.starttls() is NOT needed for SMTP_SSL
             server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
-            server.sendmail(app.config['MAIL_USERNAME'], to_email, msg.as_string())
+            server.sendmail(app.config['MAIL_USERNAME'], [to_email, app.config['MAIL_USERNAME']], msg.as_string())
         print(f"✅ Email sent to {to_email}")
     except Exception as e:
         print(f"❌ Email failed to {to_email}: {e}")
@@ -254,6 +254,7 @@ def book():
         booking_date = request.form.get("date")
         slot = request.form.get("slot")
 
+        # This operation must succeed before email is sent
         sheet.append_row([name, phone, email, age, location, booking_date, slot])
 
         # Customer Email
@@ -269,6 +270,7 @@ def book():
         return jsonify({"success": True, "message": "Booking confirmed!"}), 200
 
     except Exception as e:
+        # Added str(e) to the error message for better logging if the error is GSheets or general exception
         print(f"❌ Error in booking: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
 
