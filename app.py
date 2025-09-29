@@ -2,14 +2,17 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import date
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+# REMOVED: import smtplib, email.mime.*, ssl
 import os
 import json
-import ssl
 from gspread.exceptions import APIError 
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type 
+
+# ---------------- API IMPORTS (NEW) ----------------
+# THESE ARE REQUIRED FOR SENDGRID API
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail, Email, To, Content
+# ---------------------------------------------------
 
 app = Flask(__name__)
 
@@ -19,9 +22,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_for_testing')
 
 # Email setup for sending mails
-# FIX: MAIL_USERNAME is now set to 'apikey' on Render, but we keep the owner email here 
-# if the environment variable is not set. We will use the ENV variable on Render.
-# Note: On Render, the MAIL_USERNAME from the ENV will override the hardcoded value below.
+# MAIL_PASSWORD holds the SendGrid API Key (SG.xxxx)
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', "tarunun11@gmail.com") 
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
@@ -82,34 +83,50 @@ def append_row_with_retry(data_row):
 # --------------------------------------------------------
 
 
-# ---------------- EMAIL HELPER FUNCTIONS ----------------
+# ---------------- EMAIL HELPER FUNCTIONS (API FIX) ----------------
 def send_email(to_email, subject, body, is_html=False):
-    """Helper function to send email."""
-    # Check if MAIL_PASSWORD is set (it comes from the ENV variable)
-    if not app.config['MAIL_PASSWORD']:
-        print("❌ Email failed: MAIL_PASSWORD environment variable is missing.")
+    """Helper function to send email using the SendGrid API (HTTPS)."""
+    
+    # SendGrid uses the MAIL_PASSWORD as the API Key
+    api_key = app.config['MAIL_PASSWORD']
+    
+    if not api_key:
+        print("❌ Email failed: MAIL_PASSWORD (API Key) environment variable is missing.")
         return
+
+    # Use the OWNER_EMAIL as the verified Sender
+    from_email = app.config['OWNER_EMAIL'] 
     
     try:
-        msg = MIMEMultipart()
-        # Use MAIL_USERNAME from config (which gets overwritten by 'apikey' on Render)
-        msg["From"] = app.config['MAIL_USERNAME'] 
-        msg["To"] = to_email
-        msg["Subject"] = subject
+        # 1. Define the content
+        content_type = "text/html" if is_html else "text/plain"
+        email_content = Content(content_type, body)
         
-        if is_html:
-            msg.attach(MIMEText(body, "html"))
+        # 2. Build the message
+        # We use a list for to_emails to send to both the customer and the owner
+        to_emails_list = [
+            To(to_email),
+            To(from_email)
+        ]
+        
+        message = Mail(
+            from_email=from_email,
+            to_emails=to_emails_list,
+            subject=subject,
+            html_content=body if is_html else None,
+            plain_text_content=body if not is_html else None
+        )
+        
+        # 3. Send via API
+        sg = SendGridAPIClient(api_key)
+        response = sg.send(message)
+        
+        # Check for success status codes (200 or 202)
+        if response.status_code in [200, 202]:
+            print(f"✅ Email sent to {to_email} via SendGrid API. Status: {response.status_code}")
         else:
-            msg.attach(MIMEText(body, "plain"))
+            print(f"❌ Email failed to {to_email} via SendGrid API. Status: {response.status_code}")
 
-        # FIX: Using SendGrid's standard SMTP host and STARTTLS on port 587
-        with smtplib.SMTP("smtp.sendgrid.net", 587, timeout=60) as server:
-            server.starttls(context=ssl.create_default_context())
-            # FIX: ENSURE CORRECT INDENTATION FOR LOGIN AND SENDMAIL
-            server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
-            server.sendmail(app.config['MAIL_USERNAME'], [to_email, app.config['MAIL_USERNAME']], msg.as_string())
-            
-        print(f"✅ Email sent to {to_email}")
     except Exception as e:
         print(f"❌ Email failed to {to_email}: {e}")
 
@@ -288,8 +305,10 @@ def book():
         # Healer Notification Email
         healer_subject = "New Appointment Booking"
         healer_body = f"Hello {app.config['HEALER_NAME']},\n\nNew booking received:\n\nName: {name}\nPhone: {phone}\nEmail: {email}\nAge: {age}\nLocation: {location}\nDate: {booking_date}\nSlot: {slot}\n\nRegards,\nThe {app.config['SHOP_NAME']} System"
-        send_email(app.config['OWNER_EMAIL'], healer_subject, healer_body)
-
+        # The send_email function automatically sends a copy to the OWNER_EMAIL (from_email)
+        # However, for the Healer's notification, we must explicitly call it with the body tailored for the owner.
+        send_email(app.config['OWNER_EMAIL'], healer_subject, healer_body, is_html=False) 
+        
         return jsonify({"success": True, "message": "Booking confirmed!"}), 200
 
     except Exception as e:

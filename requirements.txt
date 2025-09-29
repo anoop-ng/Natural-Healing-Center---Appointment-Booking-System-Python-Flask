@@ -21,7 +21,7 @@ Django==5.2.4
 et_xmlfile==2.0.0
 fingerprint==0.1.6
 Flask==3.1.1
-Flask-Mail==0.10.0
+# Flask-Mail was removed as it uses the slow SMTP protocol
 folium==0.19.2
 fonttools==4.55.3
 form==0.0.1
@@ -135,4 +135,5 @@ Werkzeug==3.1.3
 wsproto==1.2.0
 xyzservices==2024.9.0
 yarl==1.20.1
-pyOpenSSL
+# SendGrid API Client is required to resolve timeout issues
+sendgrid
